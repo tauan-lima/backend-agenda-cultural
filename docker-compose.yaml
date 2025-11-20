@@ -1,0 +1,54 @@
+name: agenda-cultural
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Para o build, usa uma URL temporária (não precisa de conexão real)
+        DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/temp?schema=public}
+    ports:
+      - "3000:3000"
+    networks:
+      - agenda-cultural
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # No runtime, usa o hostname 'db' do Docker e as variáveis do .env
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-123456}@db:5432/${POSTGRES_DB:-agenda_cultural}?schema=public
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npx prisma generate && npx prisma migrate deploy || npx prisma db push || true && npm run seed && npm run dev"
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DB:-agenda_cultural}
+      # Garante que o banco seja criado mesmo se o usuário já existir
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=pt_BR.UTF-8"
+    ports:
+      - "5432:5432"
+    networks:
+      - agenda-cultural
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-agenda_cultural}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  agenda-cultural:
+    driver: bridge
+
+volumes:
+  pgdata:
