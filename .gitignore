@@ -1,3 +1,11 @@
 node_modules
 
 /src/generated/prisma
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Mantém o .env.example para referência
+!.env.example
