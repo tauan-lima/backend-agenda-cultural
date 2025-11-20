@@ -56,7 +56,7 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
   return;
 });
 
-authRouter.post('/logout', async (req: Request, res: Response): Promise<void> => {
+authRouter.post('/sair', async (req: Request, res: Response): Promise<void> => {
   const cookieHeader = req.headers.cookie as string | undefined;
   const current = parseCookie(cookieHeader, COOKIE_NAME);
   await refreshTokenService.revoke(current);
