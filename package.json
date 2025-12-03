@@ -5,10 +5,14 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsup src/app.ts --format esm --dts --out-dir dist",
-    "start": "node dist/app.js",
+    "build": "tsup",
+    "start": "node dist/server.js",
     "seed": "tsx prisma/seed.ts",
-    "studio": "prisma studio"
+    "studio": "prisma studio",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --maxWorkers=2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
