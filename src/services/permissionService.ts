@@ -5,9 +5,23 @@ export class PermissionServiceError extends Error { }
 
 export class PermissionService {
   static async getUserPermissions(userId: string): Promise<string[]> {
+    // Busca o usuário para obter o role
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+
+    if (!user) {
+      return [];
+    }
+
+    // Retorna o role do usuário em lowercase como permissão
+    // ADMIN -> ["admin"]
+    // PROMOTER -> ["promoter"]
+    // USER -> ["user"]
+    return [user.role.toLowerCase()];
+
     // TODO: Implementar quando os modelos de permissões forem adicionados ao schema
-    // Por enquanto, retorna array vazio
-    return [];
     // const permissions = await prisma.permissions.findMany({
     //   where: {
     //     OR: [

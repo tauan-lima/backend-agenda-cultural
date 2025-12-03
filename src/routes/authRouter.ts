@@ -26,7 +26,9 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
     select: {
       id: true,
       name: true,
-      email: true
+      email: true,
+      role: true,
+      approvedAt: true
     }
   });
 
@@ -49,7 +51,9 @@ authRouter.post('/refresh', async (req: Request, res: Response): Promise<void> =
     user: {
       id: user.id,
       name: user.name,
-      email: user.email
+      email: user.email,
+      role: user.role,
+      approvedAt: user.approvedAt
     },
     permissions: permissions
   });

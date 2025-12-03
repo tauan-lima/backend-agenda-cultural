@@ -17,10 +17,10 @@ import type * as Prisma from "./prismaNamespace.js"
 
 const config: runtime.GetPrismaClientConfig = {
   "previewFeatures": [],
-  "clientVersion": "7.0.0",
-  "engineVersion": "0c19ccc313cf9911a90d99d2ac2eb0280c76c513",
+  "clientVersion": "7.0.1",
+  "engineVersion": "f09f2815f091dbba658cdcd2264306d88bb5bda6",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"@prisma/client\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  name      String\n  email     String   @unique\n  password  String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@map(\"users\")\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"@prisma/client\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum UserRole {\n  ADMIN\n  PROMOTER\n  USER\n}\n\nenum EventStatus {\n  PENDING\n  APPROVED\n  REJECTED\n  CANCELLED\n}\n\nmodel User {\n  id         String    @id @default(uuid())\n  name       String\n  email      String    @unique\n  password   String\n  role       UserRole  @default(USER)\n  // Para promoters aguardando aprovação\n  approvedAt DateTime?\n  approvedBy String? // ID do admin que aprovou\n  createdAt  DateTime  @default(now())\n  updatedAt  DateTime  @updatedAt\n\n  // Relações\n  approvedPromoters  User[]              @relation(\"PromoterApprovals\")\n  approver           User?               @relation(\"PromoterApprovals\", fields: [approvedBy], references: [id])\n  createdEvents      Event[]\n  eventRegistrations EventRegistration[]\n  savedEvents        SavedEvent[]\n\n  @@map(\"users\")\n}\n\nmodel Event {\n  id                   String      @id @default(uuid())\n  title                String\n  description          String      @db.Text\n  location             String\n  startDate            DateTime\n  endDate              DateTime\n  imageUrl             String?\n  // Se o evento requer inscrição ou é aberto ao público\n  requiresRegistration Boolean     @default(true)\n  // Status de aprovação do evento\n  status               EventStatus @default(PENDING)\n  // Promoter que criou o evento\n  promoterId           String\n  promoter             User        @relation(fields: [promoterId], references: [id], onDelete: Cascade)\n  // Admin que aprovou/rejeitou o evento\n  approvedBy           String?\n  approvedAt           DateTime?\n  rejectionReason      String?     @db.Text\n  createdAt            DateTime    @default(now())\n  updatedAt            DateTime    @updatedAt\n\n  // Relações\n  registrations EventRegistration[]\n  savedByUsers  SavedEvent[]\n\n  @@index([promoterId])\n  @@index([status])\n  @@index([startDate])\n  @@map(\"events\")\n}\n\nmodel EventRegistration {\n  id        String   @id @default(uuid())\n  eventId   String\n  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  createdAt DateTime @default(now())\n\n  @@unique([eventId, userId])\n  @@index([eventId])\n  @@index([userId])\n  @@map(\"event_registrations\")\n}\n\nmodel SavedEvent {\n  id        String   @id @default(uuid())\n  eventId   String\n  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  createdAt DateTime @default(now())\n\n  @@unique([eventId, userId])\n  @@index([eventId])\n  @@index([userId])\n  @@map(\"saved_events\")\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"users\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"UserRole\"},{\"name\":\"approvedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"approvedBy\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"approvedPromoters\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PromoterApprovals\"},{\"name\":\"approver\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"PromoterApprovals\"},{\"name\":\"createdEvents\",\"kind\":\"object\",\"type\":\"Event\",\"relationName\":\"EventToUser\"},{\"name\":\"eventRegistrations\",\"kind\":\"object\",\"type\":\"EventRegistration\",\"relationName\":\"EventRegistrationToUser\"},{\"name\":\"savedEvents\",\"kind\":\"object\",\"type\":\"SavedEvent\",\"relationName\":\"SavedEventToUser\"}],\"dbName\":\"users\"},\"Event\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"location\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"startDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"endDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"imageUrl\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"requiresRegistration\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"EventStatus\"},{\"name\":\"promoterId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"promoter\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"EventToUser\"},{\"name\":\"approvedBy\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"approvedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"rejectionReason\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"registrations\",\"kind\":\"object\",\"type\":\"EventRegistration\",\"relationName\":\"EventToEventRegistration\"},{\"name\":\"savedByUsers\",\"kind\":\"object\",\"type\":\"SavedEvent\",\"relationName\":\"EventToSavedEvent\"}],\"dbName\":\"events\"},\"EventRegistration\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"eventId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"event\",\"kind\":\"object\",\"type\":\"Event\",\"relationName\":\"EventToEventRegistration\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"EventRegistrationToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"event_registrations\"},\"SavedEvent\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"eventId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"event\",\"kind\":\"object\",\"type\":\"Event\",\"relationName\":\"EventToSavedEvent\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"SavedEventToUser\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":\"saved_events\"}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -183,6 +183,36 @@ export interface PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.event`: Exposes CRUD operations for the **Event** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Events
+    * const events = await prisma.event.findMany()
+    * ```
+    */
+  get event(): Prisma.EventDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.eventRegistration`: Exposes CRUD operations for the **EventRegistration** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more EventRegistrations
+    * const eventRegistrations = await prisma.eventRegistration.findMany()
+    * ```
+    */
+  get eventRegistration(): Prisma.EventRegistrationDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.savedEvent`: Exposes CRUD operations for the **SavedEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SavedEvents
+    * const savedEvents = await prisma.savedEvent.findMany()
+    * ```
+    */
+  get savedEvent(): Prisma.SavedEventDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

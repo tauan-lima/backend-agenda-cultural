@@ -13,13 +13,97 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  ADMIN
+  PROMOTER
+  USER
+}
+
+enum EventStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(uuid())
+  name       String
+  email      String    @unique
+  password   String
+  role       UserRole  @default(USER)
+  // Para promoters aguardando aprovação
+  approvedAt DateTime?
+  approvedBy String? // ID do admin que aprovou
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relações
+  approvedPromoters  User[]              @relation("PromoterApprovals")
+  approver           User?               @relation("PromoterApprovals", fields: [approvedBy], references: [id])
+  createdEvents      Event[]
+  eventRegistrations EventRegistration[]
+  savedEvents        SavedEvent[]
 
   @@map("users")
+}
+
+model Event {
+  id                   String      @id @default(uuid())
+  title                String
+  description          String      @db.Text
+  location             String
+  startDate            DateTime
+  endDate              DateTime
+  imageUrl             String?
+  // Se o evento requer inscrição ou é aberto ao público
+  requiresRegistration Boolean     @default(true)
+  // Status de aprovação do evento
+  status               EventStatus @default(PENDING)
+  // Promoter que criou o evento
+  promoterId           String
+  promoter             User        @relation(fields: [promoterId], references: [id], onDelete: Cascade)
+  // Admin que aprovou/rejeitou o evento
+  approvedBy           String?
+  approvedAt           DateTime?
+  rejectionReason      String?     @db.Text
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  // Relações
+  registrations EventRegistration[]
+  savedByUsers  SavedEvent[]
+
+  @@index([promoterId])
+  @@index([status])
+  @@index([startDate])
+  @@map("events")
+}
+
+model EventRegistration {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_registrations")
+}
+
+model SavedEvent {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("saved_events")
 }

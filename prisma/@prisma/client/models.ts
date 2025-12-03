@@ -9,4 +9,7 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/Event.js'
+export type * from './models/EventRegistration.js'
+export type * from './models/SavedEvent.js'
 export type * from './commonInputTypes.js'

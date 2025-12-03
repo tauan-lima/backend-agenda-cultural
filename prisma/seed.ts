@@ -10,35 +10,106 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const adminEmail = 'admin@agendacultural.com';
-  const adminPassword = '123456';
-  const adminName = 'Administrador';
+  // Dados dos usuários de teste
+  const users = [
+    {
+      name: 'Administrador',
+      email: 'admin@agendacultural.com',
+      password: '123456',
+      role: 'ADMIN' as const,
+    },
+    {
+      name: 'Promoter Teste',
+      email: 'promoter@agendacultural.com',
+      password: '123456',
+      role: 'PROMOTER' as const,
+    },
+    {
+      name: 'Usuário Comum',
+      email: 'usuario@agendacultural.com',
+      password: '123456',
+      role: 'USER' as const,
+    },
+  ];
 
-  // Verifica se o usuário admin já existe
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail },
-  });
+  console.log('Iniciando seed de usuários...\n');
 
-  if (existingAdmin) {
-    console.log('Usuário admin já existe no banco de dados.');
-    return;
+  // Função auxiliar para criar ou atualizar usuário de forma segura
+  async function upsertUser(userData: typeof users[0], approvedBy?: string) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: userData.email },
+    });
+
+    const hashedPassword = await hash(userData.password, 10);
+    const updateData: any = {
+      name: userData.name,
+      password: hashedPassword, // Sempre atualiza a senha para garantir consistência
+      role: userData.role,
+    };
+
+    // Se for promoter e não estiver aprovado, adiciona dados de aprovação
+    if (userData.role === 'PROMOTER' && approvedBy) {
+      updateData.approvedAt = new Date();
+      updateData.approvedBy = approvedBy;
+    }
+
+    if (existingUser) {
+      // Verifica se precisa atualizar (sempre atualiza senha para garantir consistência)
+      const needsUpdate =
+        existingUser.role !== userData.role ||
+        existingUser.name !== userData.name ||
+        (userData.role === 'PROMOTER' && !existingUser.approvedAt);
+
+      // Sempre atualiza para garantir que a senha esteja correta
+      const updated = await prisma.user.update({
+        where: { email: userData.email },
+        data: updateData,
+      });
+
+      if (needsUpdate) {
+        console.log(`✅ Usuário ${userData.role} atualizado com sucesso!`);
+      } else {
+        console.log(`✅ Usuário ${userData.role} já existe. Senha atualizada para garantir consistência.`);
+      }
+      return updated;
+    } else {
+      // Cria novo usuário
+      const created = await prisma.user.create({
+        data: updateData,
+      });
+      console.log(`✅ Usuário ${userData.role} criado com sucesso!`);
+      return created;
+    }
   }
 
-  // Faz hash da senha
-  const hashedPassword = await hash(adminPassword, 10);
-
-  // Cria o usuário admin
-  const admin = await prisma.user.create({
-    data: {
-      name: adminName,
-      email: adminEmail,
-      password: hashedPassword,
-    },
-  });
-
-  console.log('Usuário admin criado com sucesso!');
+  // Cria ou atualiza o admin primeiro (necessário para aprovar o promoter)
+  const admin = await upsertUser(users[0]);
   console.log(`   Email: ${admin.email}`);
-  console.log(`   ID: ${admin.id}`);
+  console.log(`   Senha: ${users[0].password}`);
+  console.log(`   ID: ${admin.id}\n`);
+
+  // Cria ou atualiza o promoter (aprovado pelo admin)
+  const promoter = await upsertUser(users[1], admin.id);
+  console.log(`   Email: ${promoter.email}`);
+  console.log(`   Senha: ${users[1].password}`);
+  if (promoter.role === 'PROMOTER') {
+    console.log(`   Status: ${promoter.approvedAt ? 'Aprovado' : 'Pendente'}`);
+  }
+  console.log(`   ID: ${promoter.id}\n`);
+
+  // Cria ou atualiza o usuário comum
+  const user = await upsertUser(users[2]);
+  console.log(`   Email: ${user.email}`);
+  console.log(`   Senha: ${users[2].password}`);
+  console.log(`   ID: ${user.id}\n`);
+
+  console.log('🎉 Seed concluído com sucesso!');
+  console.log('\n📋 Resumo dos usuários:');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`ADMIN:    ${users[0].email} / ${users[0].password}`);
+  console.log(`PROMOTER: ${users[1].email} / ${users[1].password}`);
+  console.log(`USER:     ${users[2].email} / ${users[2].password}`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 main()
