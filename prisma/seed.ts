@@ -44,6 +44,7 @@ async function main() {
     const hashedPassword = await hash(userData.password, 10);
     const updateData: any = {
       name: userData.name,
+      email: userData.email,
       password: hashedPassword, // Sempre atualiza a senha para garantir consistência
       role: userData.role,
     };
