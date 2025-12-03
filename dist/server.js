@@ -1806,11 +1806,18 @@ var init_routes = __esm({
 function requestErrorHandler(err, req, res, next) {
   if (res.headersSent) {
     return next(err);
-  } else if (err instanceof HttpError) {
+  }
+  if (err.message && err.message.includes("CORS")) {
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    return res.status(403).json({ message: "CORS: Origem n\xE3o permitida" });
+  }
+  if (err instanceof HttpError) {
     return res.status(err.statusCode).json({ message: err.message });
   } else if (err instanceof zod.ZodError) {
     return res.status(400).json({ message: "Erro de valida\xE7\xE3o", issues: err.issues });
   } else {
+    console.error("Erro n\xE3o tratado:", err);
     return res.status(500).json({ message: "Erro interno do servidor: " + err.message });
   }
 }
@@ -1845,10 +1852,31 @@ var init_app = __esm({
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
       exposedHeaders: ["Content-Range", "X-Content-Range"],
-      maxAge: 86400
+      maxAge: 86400,
       // Cache preflight por 24 horas
+      preflightContinue: false,
+      optionsSuccessStatus: 204
     };
     app.use(cors__default.default(corsOptions));
+    app.options("*", cors__default.default(corsOptions));
+    app.use((req, res, next) => {
+      const origin = req.headers.origin;
+      if (origin) {
+        if (process.env.CORS_ORIGINS) {
+          const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((o) => o.trim());
+          if (allowedOrigins.includes(origin)) {
+            res.setHeader("Access-Control-Allow-Origin", origin);
+          }
+        } else {
+          res.setHeader("Access-Control-Allow-Origin", origin);
+        }
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        res.setHeader("Access-Control-Expose-Headers", "Content-Range, X-Content-Range");
+      }
+      next();
+    });
     app.use(express__default.default.json());
     app.use("/api", router);
     app.use(requestErrorHandler);
