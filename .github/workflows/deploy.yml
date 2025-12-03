@@ -1,0 +1,76 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy para Produção
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Build do projeto
+        run: npm run build
+
+      - name: Criar diretório de deploy
+        run: |
+          mkdir -p deploy-package
+          cp -r dist deploy-package/
+          cp package.json deploy-package/
+          cp package-lock.json deploy-package/
+          cp -r prisma deploy-package/
+          cp prisma.config.ts deploy-package/ 2>/dev/null || true
+          cp .env.example deploy-package/ 2>/dev/null || true
+
+      - name: Criar arquivo de deploy
+        run: |
+          cd deploy-package
+          tar -czf ../deploy.tar.gz .
+
+      - name: Upload artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-package
+          path: deploy.tar.gz
+          retention-days: 30
+
+      # Exemplo de deploy via SSH (descomente e configure conforme necessário)
+      # - name: Deploy via SSH
+      #   uses: appleboy/scp-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_SSH_KEY }}
+      #     source: "deploy-package/*"
+      #     target: "/var/www/backend-agenda-cultural"
+      #     strip_components: 1
+
+      # - name: Executar comandos no servidor
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_SSH_KEY }}
+      #     script: |
+      #       cd /var/www/backend-agenda-cultural
+      #       npm install --production
+      #       npx prisma migrate deploy
+      #       pm2 restart backend-agenda-cultural || pm2 start dist/app.js --name backend-agenda-cultural
+
