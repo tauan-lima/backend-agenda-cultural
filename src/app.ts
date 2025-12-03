@@ -40,9 +40,6 @@ const corsOptions: cors.CorsOptions = {
 // Aplicar CORS antes de tudo
 app.use(cors(corsOptions));
 
-// Handler explícito para requisições OPTIONS (preflight)
-app.options('*', cors(corsOptions));
-
 // Middleware para garantir headers CORS em todas as respostas
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
