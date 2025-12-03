@@ -1819,13 +1819,36 @@ var init_requestErrorHandler = __esm({
     init_http();
   }
 });
-var app;
+var app, corsOptions;
 var init_app = __esm({
   "src/app.ts"() {
     init_routes();
     init_requestErrorHandler();
     app = express__default.default();
-    app.use(cors__default.default());
+    corsOptions = {
+      origin: (origin, callback) => {
+        if (!origin) {
+          return callback(null, true);
+        }
+        if (process.env.CORS_ORIGINS) {
+          const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((o) => o.trim());
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          } else {
+            return callback(new Error("Not allowed by CORS"));
+          }
+        }
+        callback(null, true);
+      },
+      credentials: true,
+      // Permitir cookies e credenciais
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+      exposedHeaders: ["Content-Range", "X-Content-Range"],
+      maxAge: 86400
+      // Cache preflight por 24 horas
+    };
+    app.use(cors__default.default(corsOptions));
     app.use(express__default.default.json());
     app.use("/api", router);
     app.use(requestErrorHandler);
@@ -1836,7 +1859,7 @@ var init_app = __esm({
 var require_server = __commonJS({
   "src/server.ts"() {
     init_app();
-    var PORT = 3e3;
+    var PORT = process.env.PORT || 3e3;
     app.listen(PORT, () => {
       console.log(`O servidor est\xE1 rodando em http://localhost:${PORT}`);
     });
