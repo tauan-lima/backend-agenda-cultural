@@ -18,28 +18,30 @@ const getAllowedOrigins = (): string[] => {
   return ['*'];
 };
 
+// Função para verificar se origem é permitida
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true; // Sem origem = permitir (Postman, mobile, etc)
+
+  const allowedOrigins = getAllowedOrigins();
+
+  // Se '*' está na lista, permitir todas as origens
+  if (allowedOrigins.includes('*')) {
+    return true;
+  }
+
+  // Verificar se a origem está na lista permitida
+  return allowedOrigins.includes(origin);
+};
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = getAllowedOrigins();
-
-    // Se não há origem (requisições de mesma origem, mobile, Postman, etc), permitir
-    if (!origin) {
-      return callback(null, true);
+    if (isOriginAllowed(origin)) {
+      // Com credentials: true, devemos retornar a origem exata, não '*'
+      callback(null, origin || true);
+    } else {
+      console.warn(`CORS: Origem bloqueada: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
     }
-
-    // Se '*' está na lista, permitir todas as origens
-    if (allowedOrigins.includes('*')) {
-      return callback(null, true);
-    }
-
-    // Verificar se a origem está na lista permitida
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Origem não permitida
-    console.warn(`CORS: Origem bloqueada: ${origin}`);
-    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true, // Permitir cookies e credenciais
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -52,6 +54,27 @@ const corsOptions: cors.CorsOptions = {
 
 // Aplicar CORS antes de tudo
 app.use(cors(corsOptions));
+
+// Middleware adicional para garantir headers CORS em todas as respostas
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+
+  // Se há origem e é permitida, adicionar headers CORS
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+  }
+
+  // Responder imediatamente para requisições OPTIONS (preflight)
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
+  next();
+});
 
 app.use(express.json());
 

@@ -1826,26 +1826,34 @@ var init_requestErrorHandler = __esm({
     init_http();
   }
 });
-var app, corsOptions;
+var app, getAllowedOrigins, isOriginAllowed, corsOptions;
 var init_app = __esm({
   "src/app.ts"() {
     init_routes();
     init_requestErrorHandler();
     app = express__default.default();
+    getAllowedOrigins = () => {
+      if (process.env.CORS_ORIGINS) {
+        return process.env.CORS_ORIGINS.split(",").map((o) => o.trim());
+      }
+      return ["*"];
+    };
+    isOriginAllowed = (origin) => {
+      if (!origin) return true;
+      const allowedOrigins = getAllowedOrigins();
+      if (allowedOrigins.includes("*")) {
+        return true;
+      }
+      return allowedOrigins.includes(origin);
+    };
     corsOptions = {
       origin: (origin, callback) => {
-        if (!origin) {
-          return callback(null, true);
+        if (isOriginAllowed(origin)) {
+          callback(null, origin || true);
+        } else {
+          console.warn(`CORS: Origem bloqueada: ${origin}`);
+          callback(new Error("Not allowed by CORS"));
         }
-        if (process.env.CORS_ORIGINS) {
-          const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((o) => o.trim());
-          if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-          } else {
-            return callback(new Error("Not allowed by CORS"));
-          }
-        }
-        callback(null, true);
       },
       credentials: true,
       // Permitir cookies e credenciais
@@ -1858,22 +1866,17 @@ var init_app = __esm({
       optionsSuccessStatus: 204
     };
     app.use(cors__default.default(corsOptions));
-    app.options("*", cors__default.default(corsOptions));
     app.use((req, res, next) => {
       const origin = req.headers.origin;
-      if (origin) {
-        if (process.env.CORS_ORIGINS) {
-          const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((o) => o.trim());
-          if (allowedOrigins.includes(origin)) {
-            res.setHeader("Access-Control-Allow-Origin", origin);
-          }
-        } else {
-          res.setHeader("Access-Control-Allow-Origin", origin);
-        }
+      if (origin && isOriginAllowed(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Credentials", "true");
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
         res.setHeader("Access-Control-Expose-Headers", "Content-Range, X-Content-Range");
+      }
+      if (req.method === "OPTIONS") {
+        return res.status(204).end();
       }
       next();
     });
