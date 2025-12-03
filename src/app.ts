@@ -8,25 +8,38 @@ import { requestErrorHandler } from "./middlewares/requestErrorHandler";
 const app = express();
 
 // Configuração de CORS - deve ser o primeiro middleware
+// Lista de origens permitidas (pode ser configurada via variável de ambiente)
+const getAllowedOrigins = (): string[] => {
+  if (process.env.CORS_ORIGINS) {
+    return process.env.CORS_ORIGINS.split(',').map(o => o.trim());
+  }
+  // Por padrão, permitir todas as origens (desenvolvimento)
+  // Em produção, configure CORS_ORIGINS com as origens específicas
+  return ['*'];
+};
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // Se não há origem (requisições de mesma origem, mobile, etc), permitir
+    const allowedOrigins = getAllowedOrigins();
+
+    // Se não há origem (requisições de mesma origem, mobile, Postman, etc), permitir
     if (!origin) {
       return callback(null, true);
     }
 
-    // Se CORS_ORIGINS está configurado, usar lista específica
-    if (process.env.CORS_ORIGINS) {
-      const allowedOrigins = process.env.CORS_ORIGINS.split(',').map(o => o.trim());
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error('Not allowed by CORS'));
-      }
+    // Se '*' está na lista, permitir todas as origens
+    if (allowedOrigins.includes('*')) {
+      return callback(null, true);
     }
 
-    // Se não configurado, permitir todas as origens
-    callback(null, true);
+    // Verificar se a origem está na lista permitida
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Origem não permitida
+    console.warn(`CORS: Origem bloqueada: ${origin}`);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true, // Permitir cookies e credenciais
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -39,31 +52,6 @@ const corsOptions: cors.CorsOptions = {
 
 // Aplicar CORS antes de tudo
 app.use(cors(corsOptions));
-
-// Middleware para garantir headers CORS em todas as respostas
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const origin = req.headers.origin;
-
-  // Se há origem na requisição, adicionar header CORS
-  if (origin) {
-    // Verificar se origem é permitida
-    if (process.env.CORS_ORIGINS) {
-      const allowedOrigins = process.env.CORS_ORIGINS.split(',').map(o => o.trim());
-      if (allowedOrigins.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-      }
-    } else {
-      // Permitir todas as origens se não configurado
-      res.setHeader('Access-Control-Allow-Origin', origin);
-    }
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
-  }
-
-  next();
-});
 
 app.use(express.json());
 
