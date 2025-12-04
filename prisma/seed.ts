@@ -112,7 +112,7 @@ async function main() {
 
   // Criar eventos apenas se o promoter estiver aprovado
   if (promoter.role === 'PROMOTER' && promoter.approvedAt) {
-    console.log('Iniciando seed de eventos...\n');
+    console.log('Iniciando seed de eventos\n');
 
     // Limpar eventos existentes do promoter (opcional - para idempotência)
     await prisma.event.deleteMany({
